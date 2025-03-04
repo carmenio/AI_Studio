@@ -1,0 +1,28 @@
+
+
+# PyCache stuff
+**/__pycache__/**
+
+# Envrioment Stff
+.conda/**
+
+# Pickel Files
+**.pkl
+
+# Video Files
+Videos/*
+**.mp4
+**.mov
+**.heic
+**.jpg
+**.png
+
+# Other
+**.DS_Store
+
+# Any Documention not for public
+Documentation/*
+**.drawio
+
+# Any Dataset stuff
+Dataset/*
