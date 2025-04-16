@@ -43,6 +43,7 @@ class Video(MediaStream):
         self.video_path = video_path
         self.start = start
         self.end = end
+        self.orientation_data_path = None
         
         self._init_capture()
         
@@ -193,6 +194,41 @@ class Video(MediaStream):
         """
         # Calculate the full video duration using the frame count and fps
         return Video(self.video_path, start=start_time, end=end_time)
+    
+    def add_orientation_data(self, orientation_data_path):
+        self = OrientatedVideo(self.video_path, orientation_data_path, start=self.start, end=self.end)
+        
+    
+        
+class OrientatedVideo(Video):
+    def __init__(self, video_path: str, orientation_data_path:str, start: Union[int, float] = 0, end: Union[int, float, None] = None) -> None:
+        super().__init__(video_path, start, end)
+        self.orientation_data_path = orientation_data_path
+        
+        
+    # def play(self):
+    #     """Plays the selected part of the video at the correct FPS."""
+    #     frame_duration = 1 / self.fps
+
+    #     while self.cap.isOpened():
+    #         start_time = time.time()
+    #         ret, frame = self.read()
+    #         if not ret:
+    #             break
+
+    #         cv2.imshow("Video Playback", frame)
+    #         elapsed_time = time.time() - start_time
+    #         remaining_time = max(0, frame_duration - elapsed_time)
+    #         time.sleep(remaining_time)
+
+    #         if cv2.waitKey(1) & 0xFF == ord('q'):
+    #             break
+
+    #     self.cap.release()
+    #     cv2.destroyAllWindows()
+        
+        
+        
 
     
 
@@ -300,7 +336,9 @@ class Photo(MediaStream):
 
 
 if __name__ == "__main__":
-    video = Video("/Users/christopherarmenio/Desktop/Golf Dataset/Dataset/Videos_Broken_Up/Back/segment_1.mp4", start=0, end=3)
+    # video = Video("/Users/christopherarmenio/Desktop/Golf Dataset/Dataset/Videos_Broken_Up/Back/segment_1.mp4", start=0, end=3)
+    
+    video = OrientatedVideo('Videos/iPhoneRecordings/Vide_2/recording_1741669263.9204202.mov', 'Videos/iPhoneRecordings/Vide_2/orientation_1741669263.9204202.json')
     video.play()
     # print(
     #     video.get_high_points(-25.0, 0.1)

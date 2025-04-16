@@ -29,6 +29,9 @@ class BasePoseExtraction(BaseClass):
             self.progress_bar = tqdm(total=self.media_steam.frame_count, desc=f'Analyzing Steam: "{self.media_steam.source}"')
         else:
             self.progress_bar = None
+            
+        
+        self._extract_points()
 
     # ------------------------------ Pose Stuff ------------------------------ #
     def get_pose_sequence(self) -> PoseSequence:
@@ -36,8 +39,26 @@ class BasePoseExtraction(BaseClass):
         return self.pose_sequence
     
     def _extract_points(self):
-        """Abstract method to be implemented by subclasses."""
-        raise NotImplementedError("Please implement _extract_points in a subclass.")
+        """
+        Processes the video frame by frame, extracting pose landmarks.
+        """
+        try:
+            while True:
+                ret, frame = self.media_steam.read()
+                if not ret:
+                    break
+
+
+                landmarks = self._extract_points_from_frame(frame)
+                pose_frame = PoseFrame(landmarks)
+                self.pose_sequence.add_pose_frame(pose_frame)
+
+                self._update_progress()
+        except KeyboardInterrupt:
+            pass
+
+        self.media_steam.release()
+        self._close_progress()
 
     # ------------------------------ Progress Bar Stuff ------------------------------ #
 
@@ -67,39 +88,19 @@ class MediaPipePoseExtraction(BasePoseExtraction):
         Extracts pose landmarks from a video using MediaPipe.
         """
         super().__init__(media_steam)
-        self._extract_points()
 
-    def _extract_points(self):
-        """
-        Processes the video frame by frame, extracting pose landmarks.
-        """
-        try:
-            while True:
-                ret, frame = self.media_steam.read()
-                if not ret:
-                    break
-
-
-                results, _ = self._extract_points_from_frame(frame)
-                
-                if results and results.pose_landmarks:
-                    landmarks = self._convert_landmarks(results)
-                    pose_frame = PoseFrame(landmarks)
-                    self.pose_sequence.add_pose_frame(pose_frame)
-
-                self._update_progress()
-        except KeyboardInterrupt:
-            pass
-
-        self.media_steam.release()
-        self._close_progress()
 
     def _extract_points_from_frame(self, frame: np.ndarray):
         """
         Converts a frame to RGB and runs MediaPipe pose estimation.
         """
         rgb_frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
-        return self.mp_pose.process(rgb_frame), rgb_frame
+        results = self.mp_pose.process(rgb_frame)
+        
+        if results and results.pose_landmarks:
+            return self._convert_landmarks(results)
+        
+        return None
 
     def _convert_landmarks(self, pose_results) -> list[Landmark]:
         """
@@ -108,6 +109,9 @@ class MediaPipePoseExtraction(BasePoseExtraction):
         return [Landmark(lm.x, lm.y, lm.z, lm.visibility)
                 for lm in pose_results.pose_landmarks.landmark]
 
+
+    
+    
 
 if __name__ == "__main__":
     
