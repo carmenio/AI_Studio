@@ -10,12 +10,12 @@ class ExtractLandmarks:
         Extract Landmarks corresponding to a particular type of gait.
     """
 
-    def __init__(self, gait_type: str = None):
+    def __init__(self, gait_type: str):
         """
         Initialise the ExtractLandmarks class.
 
         Args:
-            gait_type (str, optional): The type of gait to be processed. Defaults to None.
+            gait_type (str, optional): The type of gait to be processed.
 
         Attributes:
             landmarks (dict): A dictionary to store extracted landmarks.
