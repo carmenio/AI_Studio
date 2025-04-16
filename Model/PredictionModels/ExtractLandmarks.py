@@ -59,7 +59,7 @@ class ExtractLandmarks:
             Extract landmarks for all sequences. 
         """
         for seq in self.pose_sequences:
-            self.extract(seq)
+            self.extract_single_seq(seq)
 
 
 
