@@ -1,1 +1,7 @@
 Here you can create some code to turn the data frame into a a classification, or analysis on it
+
+1) Extract sequences of landmarks from frames -> PoseSequence
+2) Get gait metrics 
+3) Make the dataset
+4) Build, train classification model
+5) Build predictor
