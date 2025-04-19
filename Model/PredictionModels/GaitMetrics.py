@@ -1,7 +1,7 @@
 # Set The Parent Directory - to main.py folder
 import os, sys; [(sys.path.append(d), print(f'Added {d} to system path')) for d in (os.path.abspath(os.path.join(os.getcwd(), *([".."] * i))) for i in range(len(os.getcwd().split(os.sep)))) if os.path.isfile(os.path.join(d, 'main.py'))]
 
-from Model.Pose.Sequence.PoseFrame import Landmark, PoseFrame
+from Model.Pose.Sequence.PoseFrame import Landmark
 from typing import Dict, List, Tuple
 class GaitMetrics:
     """
@@ -24,23 +24,37 @@ class GaitMetrics:
                     metric_landmarks.append(landmarks_list[i])
 
         return metric_landmarks
+    
+    def calc_metrics(self, required_landmarks: List[int], metric_eqn = None):
+        metric_values = []
+        
+        # Parse the landmarks to get the required ones
+        metric_landmarks = self.get_landmarks(required_landmarks) # 2D list of landmarks
+
+        # Perform calculations on the metric_landmarks to get the desired metric
+        # metric_value = 0.0
+        for frame_req_landmarks in metric_landmarks: # gets the required landmarks list
+            # frame_req_landmarks: List[Landmark]
+
+            # Apply the metric equation if provided, otherwise default to 0.0
+            metric_value = metric_eqn(frame_req_landmarks) if metric_eqn else 0.0
+
+            metric_values.append(metric_value)
+
+        return metric_values
 
     # TODO: Change the func names to gait metric name and add the equations for each metric
     
-    def metric1(self, required_landmarks: List[int]):
+    # ! THIS IS AN EXAMPLE OF A GAIT METRIC FUNCTION
+    def stepLength(self, required_landmarks: List[int]):
         """
             Calculate the ______ metric using the required landmarks.
         """
-        # Parse the landmarks to get the required ones
-        metric_landmarks = self.get_landmarks(required_landmarks)
 
-        # Perform calculations on the metric_landmarks to get the desired metric
-        metric_value = 0.0
+        # Lambda function to calculate step length between landmarks 0 and 1
+        eqn = lambda landmarks: abs(landmarks[0].x - landmarks[1].x)
 
-        # equation here
-
-
-        return metric_value
+        return self.calc_metrics(required_landmarks, eqn)
 
     def metric2(self, required_landmarks: List[int]):
         pass
