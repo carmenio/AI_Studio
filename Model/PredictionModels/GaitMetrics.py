@@ -13,6 +13,7 @@ class GaitMetrics:
 
         self.metrics_list = [] # a list to store the metrics for each frame
 
+    # NOTE: I Like it, but the issue is it too slow and you cant control the order of the landmarks, important when you are cal angles
     def get_landmarks(self, landmarks_list: List[Landmark], required_landmarks: List[int]) -> List[Landmark]:
         """
             Get the required landmarks from the landmarks list.
@@ -26,6 +27,7 @@ class GaitMetrics:
                 metric_landmarks.append(landmarks_list[i])
 
         return metric_landmarks
+    
     
     def calc_metrics(self, landmarks_list: List[Landmark], required_landmarks: List[int], metric_eqn: callable = None) -> float:
         """
@@ -83,6 +85,7 @@ class GaitMetrics:
             # after calculating the metrics for each frame, append them to the metrics_list
             self.metrics_list.append(metric_values_for_frame)
 
+        # NOTE: Need to convert to a df at the end of the for loop
 
 # TODO: After calculating metrics for each gait type, we r left with GaitMetrics objects for each gait type. 
 # Use these objects in the main file to create a dataset by concatenating the metrics for each gait type.

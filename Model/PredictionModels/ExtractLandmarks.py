@@ -39,6 +39,8 @@ class ExtractLandmarks:
 
         self.pose_sequences = [self.load_pkl_file(file) for file in filepaths]
     
+    # NOTE: You dont need to extract all the landmarks, you can just index the object like a normal array.
+    # eg. self.pose_sequences[0] will give you all the landmarks at frame 0
     def extract_single_seq(self, pose_seq):
         """
             Extract landmarks corresponding to a single pose sequence and add them to the landmarks dict.
@@ -58,6 +60,7 @@ class ExtractLandmarks:
         """
             Extract landmarks for all sequences. 
         """
+        # NOTE: Here you are going through each frame not seq
         for seq in self.pose_sequences:
             self.extract_single_seq(seq)
 
