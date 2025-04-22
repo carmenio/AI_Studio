@@ -70,7 +70,11 @@ if __name__ == "__main__":
     GAIT_PATH = "Model/PredictionModels/Sequences/Apr_10_Antalgic_Gait"
     extractor = ExtractLandmarks("Antalgic_Gait", GAIT_PATH)
 
-    extractor.load_pkl_files(sorted(os.listdir(GAIT_PATH)))
+    pkl_files = [sorted(os.path.join(GAIT_PATH, file) for file in os.listdir(GAIT_PATH) if file.endswith('.pkl'))]
+
+    # Load the pkl files into the extractor
+    extractor.load_pkl_files(pkl_files)
+    # Load the pose sequences from the pkl files
     extractor.extract()
     print(extractor.landmarks)  # Print the extracted landmarks
 
