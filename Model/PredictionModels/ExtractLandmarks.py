@@ -10,20 +10,21 @@ class ExtractLandmarks:
         Extract Landmarks corresponding to a particular type of gait.
     """
 
-    def __init__(self, gait_type: str):
+    def __init__(self, gait_type: str, gait_type_path: str):
         """
         Initialise the ExtractLandmarks class.
 
         Args:
             gait_type (str, optional): The type of gait to be processed.
+            gait_type_path (str, optional): The path to the gait type pkl data.
 
         Attributes:
             landmarks (dict): A dictionary to store extracted landmarks.
-            type (str): The type of gait specified during initialisation.
             timestep_ (int): Holds the total number of timesteps for this gait type.
         """
         self.landmarks = {}
         self.type = gait_type
+        self.gait_type_path = gait_type_path
         self.timestep_ = 0
 
     def load_pkl_file(self, filepath: str):
@@ -48,13 +49,13 @@ class ExtractLandmarks:
 
         for frame in pose_seq:
             self.timestep_ += 1
-            landmarks_list = []
+            # landmarks_list = []
             frame : PoseFrame
-            for landmark in frame:
-                landmark : Landmark
-                landmarks_list.append(landmark)
+            # for landmark in frame:
+            #     landmark : Landmark
+            #     landmarks_list.append(landmark)
 
-            self.landmarks[self.timestep_] = landmarks_list
+            self.landmarks[self.timestep_] = frame.get_landmarks()
 
     def extract(self):
         """
@@ -65,6 +66,12 @@ class ExtractLandmarks:
             self.extract_single_seq(seq)
 
 
+if __name__ == "__main__":
+    GAIT_PATH = "Model/PredictionModels/Sequences/Apr_10_Antalgic_Gait"
+    extractor = ExtractLandmarks("Antalgic_Gait", GAIT_PATH)
 
+    extractor.load_pkl_files(sorted(os.listdir(GAIT_PATH)))
+    extractor.extract()
+    print(extractor.landmarks)  # Print the extracted landmarks
 
     
