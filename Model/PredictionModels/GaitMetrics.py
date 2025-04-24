@@ -250,10 +250,6 @@ class GaitMetrics:
 
         # create a DataFrame from the metrics dictionary
         metrics_df = pd.DataFrame(metrics_dict)
-
-        # Add frame_id as index
-        metrics_df.index = list(self.landmarks.keys())
-        metrics_df.index.name = 'Frame ID'
         
         # Add gait type as a column
         metrics_df['Gait Type'] = self.type
