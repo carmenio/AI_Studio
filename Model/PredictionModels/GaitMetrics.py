@@ -12,7 +12,6 @@ class GaitMetrics:
         self.landmarks = landmarks_of_gait 
         self.metrics_list = [] # a list to store the metrics for each frame
 
-    # NOTE: I Like it, but the issue is it too slow and you cant control the order of the landmarks, important when you are cal angles
     def get_landmarks(self, landmarks_list: List[Landmark], required_landmarks: List[int]) -> List[Landmark]:
         """
             Get the required landmarks from the landmarks list.
@@ -43,8 +42,10 @@ class GaitMetrics:
         metric_value = metric_eqn(metric_landmarks) 
 
         return metric_value
+    
+    # * The order of the landmarks is important for the angle calculation !!
 
-    # Kinematic Metrics
+    # A) Kinematic Metrics
     # helper function to calculate the angle between three points in 3D space
     def calculate_angle_3d(point1, point2, point3):
         """
@@ -67,14 +68,18 @@ class GaitMetrics:
         # Calculate magnitudes
         magnitude1 = np.linalg.norm(vector1)
         magnitude2 = np.linalg.norm(vector2)
+
+        if magnitude1 * magnitude2 == 0:
+            return 0  # Avoid division by zero
         
         # Calculate angle in radians and convert to degrees
         angle = np.arccos(dot_product / (magnitude1 * magnitude2))
         return np.degrees(angle)
 
-    # NOTE: The order of the landmarks is important for the angle calculation
-
-    # 1. Hig Angle - Need shoulder, hip, knee landmarks
+    # 1. Hig Angle
+    # * Need shoulder, hip, knee landmarks
+    # * To calculate right hip angle, use landmarks 11, 23, 25
+    # * To calculate left hip angle, use landmarks 12, 24, 26
     def hipAngle(self, required_landmarks: List[int], landmarks_list: List[Landmark]):
         """
             Calculate the hip angle metric using the required landmarks.
@@ -82,14 +87,17 @@ class GaitMetrics:
 
         # Lambda function to calculate hip angle
         eqn = lambda landmarks: self.calculate_angle_3d(
-            [landmarks[required_landmarks[0]].x, landmarks[required_landmarks[0]].y, landmarks[required_landmarks[0]].z],  # Shoulder
-            [landmarks[required_landmarks[1]].x, landmarks[required_landmarks[1]].y, landmarks[required_landmarks[1]].z],  # Hip
-            [landmarks[required_landmarks[2]].x, landmarks[required_landmarks[2]].y, landmarks[required_landmarks[2]].z]   # Knee
+            [landmarks[0].x, landmarks[0].y, landmarks[0].z],  # Shoulder
+            [landmarks[1].x, landmarks[1].y, landmarks[1].z],  # Hip
+            [landmarks[2].x, landmarks[2].y, landmarks[2].z]   # Knee
         )
 
         return self.calc_metrics(landmarks_list, required_landmarks, eqn)
     
-    # 2. Knee Angle - need hip, knee, ankle landmarks
+    # 2. Knee Angle 
+    # * Need hip, knee, ankle landmarks
+    # * To calculate right knee angle, use landmarks 23, 25, 27
+    # * To calculate left knee angle, use landmarks 24, 26, 28
     def kneeAngle(self, required_landmarks: List[int], landmarks_list: List[Landmark]):
         """
             Calculate the knee angle metric using the required landmarks.
@@ -97,14 +105,102 @@ class GaitMetrics:
 
         # Lambda function to calculate knee angle
         eqn = lambda landmarks: self.calculate_angle_3d(
-            [landmarks[required_landmarks[0]].x, landmarks[required_landmarks[0]].y, landmarks[required_landmarks[0]].z],  # Hip
-            [landmarks[required_landmarks[1]].x, landmarks[required_landmarks[1]].y, landmarks[required_landmarks[1]].z],  # Knee
-            [landmarks[required_landmarks[2]].x, landmarks[required_landmarks[2]].y, landmarks[required_landmarks[2]].z]   # Ankle
+            [landmarks[0].x, landmarks[0].y, landmarks[0].z],  # Hip
+            [landmarks[1].x, landmarks[1].y, landmarks[1].z],  # Knee
+            [landmarks[2].x, landmarks[2].y, landmarks[2].z]   # Ankle
         )
 
         return self.calc_metrics(landmarks_list, required_landmarks, eqn)
     
+    # -------------------------------------------------------------------------------------------------------------------- #
     
+    # B) Postural feature Metrics
+    # helper function to calculate the angle in the sagittal plane
+    def calculate_sagittal_angle(top_point, bottom_point, is_forward_backward=True):
+        """
+        Calculate the angle in the sagittal plane (forward/backward tilt).
+        
+        Args:
+            top_point: 3D point at the top of the line [x, y, z]
+            bottom_point: 3D point at the bottom of the line [x, y, z]
+            is_forward_backward: If True, measures forward/backward angle; if False, measures side-to-side angle
+        
+        Returns:
+            Angle in degrees relative to vertical
+        """
+        
+        # For forward/backward angle, we look at the y-z plane (sagittal plane)
+        # For side-to-side angle, we would look at the x-z plane (frontal plane)
+        
+        if is_forward_backward:
+            # Project points onto the y-z plane (forward/backward)
+            actual_vector = np.array([0, top_point[1] - bottom_point[1], top_point[2] - bottom_point[2]])
+            vertical_vector = np.array([0, 0, -1])  # Vertical reference vector pointing down
+        else:
+            # Project points onto the x-z plane (side-to-side)
+            actual_vector = np.array([top_point[0] - bottom_point[0], 0, top_point[2] - bottom_point[2]])
+            vertical_vector = np.array([0, 0, -1])  # Vertical reference vector pointing down
+        
+        # Calculate dot product
+        dot_product = np.dot(actual_vector, vertical_vector)
+        
+        # Calculate magnitudes
+        magnitude1 = np.linalg.norm(actual_vector)
+        magnitude2 = np.linalg.norm(vertical_vector)
+        
+        # Calculate angle in radians and convert to degrees
+        if magnitude1 * magnitude2 == 0:
+            return 0  # Avoid division by zero
+            
+        angle = np.arccos(dot_product / (magnitude1 * magnitude2))
+        return np.degrees(angle)
+
+    # 1. Head Tilt Angle (fwd/bwd) 
+    # * Need nose (0) and neck point (midpoint between shoulders 11,12) landmarks
+    def headTiltAngle(self, required_landmarks: List[int], landmarks_list: List[Landmark]):
+        """
+            Calculate the forward/backward head tilt angle metric using the required landmarks.
+            Measures whether the head is leaning forward or downward while walking.
+        """
+        # Lambda function to calculate head tilt angle in the sagittal plane
+        eqn = lambda landmarks: self.calculate_sagittal_angle(
+            [landmarks[0].x, landmarks[0].y, landmarks[0].z],  # Nose (0)
+            # Neck point (midpoint between shoulders 11,12)
+            [(landmarks[1].x + landmarks[2].x)/2, 
+             (landmarks[1].y + landmarks[2].y)/2, 
+             (landmarks[1].z + landmarks[2].z)/2],
+            True  # True for measuring forward/backward tilt
+        )
+
+        return self.calc_metrics(landmarks_list, required_landmarks, eqn)
+
+    # 2. Body Lean Angle (fwd/bwd) 
+    # * Need shoulder midpoint (11,12) and hip midpoint (23,24) landmarks
+    def bodyLeanAngle(self, required_landmarks: List[int], landmarks_list: List[Landmark]):
+        """
+            Calculate the forward/backward body lean angle metric using the required landmarks.
+            Measures the degree to which the torso leans forward or backward.
+        """
+        # Lambda function to calculate body lean angle in the sagittal plane
+        eqn = lambda landmarks: self.calculate_sagittal_angle(
+            # midpoint between left and right shoulders (11, 12)
+            [(landmarks[0].x + landmarks[1].x)/2, 
+             (landmarks[0].y + landmarks[1].y)/2, 
+             (landmarks[0].z + landmarks[1].z)/2],
+            # midpoint between left and right hips (23, 24)
+            [(landmarks[2].x + landmarks[3].x)/2, 
+             (landmarks[2].y + landmarks[3].y)/2, 
+             (landmarks[2].z + landmarks[3].z)/2],
+            True  # True for measuring forward/backward lean
+        )
+
+        return self.calc_metrics(landmarks_list, required_landmarks, eqn)
+    
+    # -------------------------------------------------------------------------------------------------------------------- #
+
+
+
+
 
     # def stepLength(self, required_landmarks: List[int], landmarks_list: List[Landmark]):
     #     """
