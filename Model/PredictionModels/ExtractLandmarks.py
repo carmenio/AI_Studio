@@ -1,7 +1,7 @@
 # Set The Parent Directory - to main.py folder
 import os, sys; [(sys.path.append(d), print(f'Added {d} to system path')) for d in (os.path.abspath(os.path.join(os.getcwd(), *([".."] * i))) for i in range(len(os.getcwd().split(os.sep)))) if os.path.isfile(os.path.join(d, 'main.py'))]
 
-from Model.Pose.Sequence.PoseFrame import PoseFrame, Landmark
+from Model.Pose.Sequence.PoseFrame import PoseFrame
 from Model.Pose.Sequence.PoseSequence import PoseSequence
 from typing import List
 
@@ -39,6 +39,7 @@ class ExtractLandmarks:
         """
 
         self.pose_sequences = [self.load_pkl_file(file) for file in filepaths]
+
     
     # NOTE: You dont need to extract all the landmarks, you can just index the object like a normal array.
     # eg. self.pose_sequences[0] will give you all the landmarks at frame 0
@@ -49,12 +50,8 @@ class ExtractLandmarks:
 
         for frame in pose_seq:
             self.timestep_ += 1
-            # landmarks_list = []
             frame : PoseFrame
-            # for landmark in frame:
-            #     landmark : Landmark
-            #     landmarks_list.append(landmark)
-
+    
             self.landmarks[self.timestep_] = frame.get_landmarks()
 
     def extract(self):
@@ -67,11 +64,12 @@ class ExtractLandmarks:
 
 
 if __name__ == "__main__":
-    GAIT_PATH = "Model/PredictionModels/Sequences/Apr_10_Antalgic_Gait"
-    extractor = ExtractLandmarks("Antalgic_Gait", GAIT_PATH)
+    GAIT_PATH = "D:/AI_Studio/Model/PredictionModels/Sequences/Apr_10_Spastic_Gait"
+    extractor = ExtractLandmarks("Spastic_Gait", GAIT_PATH)
 
-    pkl_files = [sorted(os.path.join(GAIT_PATH, file) for file in os.listdir(GAIT_PATH) if file.endswith('.pkl'))]
+    pkl_files = sorted([os.path.join(GAIT_PATH, file) for file in os.listdir(GAIT_PATH) if file.endswith('.pkl')])
 
+    # print(pkl_files)  # Print the list of pkl files
     # Load the pkl files into the extractor
     extractor.load_pkl_files(pkl_files)
     # Load the pose sequences from the pkl files

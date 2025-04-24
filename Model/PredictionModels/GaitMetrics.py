@@ -7,10 +7,8 @@ class GaitMetrics:
     """
         Calculate gait metrics for a particular gait type.
     """
-    def __init__(self, landmarks: Dict[int , List[Landmark]], gait_type: str):
-        self.landmarks = landmarks 
-        self.type = gait_type
-
+    def __init__(self, landmarks_of_gait: Dict[int , List[Landmark]]):
+        self.landmarks = landmarks_of_gait 
         self.metrics_list = [] # a list to store the metrics for each frame
 
     # NOTE: I Like it, but the issue is it too slow and you cant control the order of the landmarks, important when you are cal angles
@@ -22,9 +20,9 @@ class GaitMetrics:
 
         # iterate through the landmarks in the list and get the required ones using the index
         # and append them to the metric_landmarks list
-        for i in range(len(landmarks_list)):
-            if i in required_landmarks:
-                metric_landmarks.append(landmarks_list[i])
+        for i in required_landmarks:
+            # if i in required_landmarks:
+            metric_landmarks.append(landmarks_list[i])
 
         return metric_landmarks
     
@@ -64,7 +62,7 @@ class GaitMetrics:
     # .... other metrics
 
     # ! CHANGE THE ARGS TO PROPER GAIT METRIC NAMES & ADD ARGS FOR EACH METRIC
-    def create_metrics_list(self, metric1_req_landmarks: List[int], metric2_req_landmarks: List[int]):
+    def create_metrics_list(self, metric1_req_landmarks: List[int], metric2_req_landmarks: List[int], ..., ...):
         """
             Create a list of metrics for the gait type.
         """
@@ -79,6 +77,9 @@ class GaitMetrics:
 
             metric_values_for_frame.append(self.stepLength(metric1_req_landmarks, frame_landmarks_list))
             metric_values_for_frame.append(self.metric2(metric2_req_landmarks, frame_landmarks_list))
+            ...
+            ...
+            ...
 
             # >>... other metrics
 
@@ -86,6 +87,24 @@ class GaitMetrics:
             self.metrics_list.append(metric_values_for_frame)
 
         # NOTE: Need to convert to a df at the end of the for loop
+        
+
+
+# example
+if __name__ ==  'main':
+    GAIT_PATH = "Model/PredictionModels/Sequences/Apr_10_Antalgic_Gait"
+    extractor = ExtractLandmarks("Antalgic_Gait", GAIT_PATH)
+
+    pkl_files = [sorted(os.path.join(GAIT_PATH, file) for file in os.listdir(GAIT_PATH) if file.endswith('.pkl'))]
+
+    # Load the pkl files into the extractor
+    extractor.load_pkl_files(pkl_files)
+    # Load the pose sequences from the pkl files
+    extractor.extract()
+
+    # NOTE: Now we have the landmarks for the gait type, we can calculate the metrics
+    gait_metrics_for_antalgic_gait = GaitMetrics(extractor.landmarks)
+    gait_metrics_for_antalgic_gait.create_metrics_list(metric1landmarks, metrics2landmarks, ....)
 
 # TODO: After calculating metrics for each gait type, we r left with GaitMetrics objects for each gait type. 
 # Use these objects in the main file to create a dataset by concatenating the metrics for each gait type.
