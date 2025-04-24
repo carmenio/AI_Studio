@@ -4,6 +4,7 @@ import os, sys; [(sys.path.append(d), print(f'Added {d} to system path')) for d 
 from Model.Pose.Sequence.PoseFrame import Landmark
 from typing import Dict, List
 import numpy as np
+import pandas as pd
 class GaitMetrics:
     """
         Calculate gait metrics for a particular gait type.
@@ -198,53 +199,66 @@ class GaitMetrics:
     
     # -------------------------------------------------------------------------------------------------------------------- #
 
+    # C) Spatiotemporal Metrics
 
 
 
 
-    # def stepLength(self, required_landmarks: List[int], landmarks_list: List[Landmark]):
-    #     """
-    #         Calculate the ______ metric using the required landmarks.
-    #     """
+    # -------------------------------------------------------------------------------------------------------------------- #
 
-    #     # Lambda function to calculate step length between landmarks 0 and 1
-    #     eqn = lambda landmarks: abs(landmarks[0].x - landmarks[1].x)
-
-    #     return self.calc_metrics(landmarks_list, required_landmarks, eqn)
-
-    # def metric2(self, required_landmarks: List[int], landmarks_list: List[Landmark]):
-    #     pass
-
-    # # .... other metrics
-
-    # ! CHANGE THE ARGS TO PROPER GAIT METRIC NAMES & ADD ARGS FOR EACH METRIC
-    def create_metrics_list(self, metric1_req_landmarks: List[int], metric2_req_landmarks: List[int], ..., ...):
+    def create_metrics_list(self, rightHipAngle_req_landmarks: List[int], leftHipAngle_req_landmarks: List[int],
+                            rightKneeAngle_req_landmarks: List[int], leftKneeAngle_req_landmarks: List[int],
+                            bodyTiltAngle_req_landmarks: List[int], headTiltAngle_req_landmarks: List[int]):
         """
-            Create a list of metrics for the gait type.
+            Create a list of metrics for the gait type and convert to DataFrame.
         """
+
+        # Initialise a dict to store metrics
+        # * Add the other metrics as well *
+        metrics_dict = {
+            "RightHipAngle": [],
+            "LeftHipAngle": [],
+            "RightKneeAngle": [],
+            "LeftKneeAngle": [],
+            "BodyLeanAngle": [],
+            "HeadTiltAngle": []
+        }
         
         # for each frame, calc the metrics using the required landmarks and append them to the metrics_list
         for frame_landmarks_list in self.landmarks.values():
             frame_landmarks_list : List[Landmark]
 
-            # iterate through the landmarks in the list and get the required ones using the index
-            # and append them to the metric_landmarks list
-            metric_values_for_frame = []
-
-            metric_values_for_frame.append(self.stepLength(metric1_req_landmarks, frame_landmarks_list))
-            metric_values_for_frame.append(self.metric2(metric2_req_landmarks, frame_landmarks_list))
+            # For each frame, calculate the metrics and store in the dictionary
+            right_hip_angle = self.hipAngle(rightHipAngle_req_landmarks, frame_landmarks_list)
+            left_hip_angle = self.hipAngle(leftHipAngle_req_landmarks, frame_landmarks_list)
+            right_knee_angle = self.kneeAngle(rightKneeAngle_req_landmarks, frame_landmarks_list)
+            left_knee_angle = self.kneeAngle(leftKneeAngle_req_landmarks, frame_landmarks_list)
+            body_lean_angle = self.bodyLeanAngle(bodyTiltAngle_req_landmarks, frame_landmarks_list)
+            head_tilt_angle = self.headTiltAngle(headTiltAngle_req_landmarks, frame_landmarks_list)
             ...
             ...
+            
+            # Append values to corresponding lists
+            metrics_dict["RightHipAngle"].append(right_hip_angle)
+            metrics_dict["LeftHipAngle"].append(left_hip_angle)
+            metrics_dict["RightKneeAngle"].append(right_knee_angle)
+            metrics_dict["LeftKneeAngle"].append(left_knee_angle)
+            metrics_dict["BodyLeanAngle"].append(body_lean_angle)
+            metrics_dict["HeadTiltAngle"].append(head_tilt_angle)
+            ...
             ...
 
-            # >>... other metrics
+        # create a DataFrame from the metrics dictionary
+        metrics_df = pd.DataFrame(metrics_dict)
 
-            # after calculating the metrics for each frame, append them to the metrics_list
-            self.metrics_list.append(metric_values_for_frame)
-
-        # NOTE: Need to convert to a df at the end of the for loop
+        # Add frame_id as index
+        metrics_df.index = list(self.landmarks.keys())
+        metrics_df.index.name = 'Frame ID'
         
+        # Add gait type as a column
+        metrics_df['Gait Type'] = self.type
 
+        return metrics_df
 
 # example
 if __name__ ==  'main':
