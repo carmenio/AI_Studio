@@ -3,6 +3,7 @@ import os, sys; [(sys.path.append(d), print(f'Added {d} to system path')) for d 
 
 from Model.Pose.Sequence.PoseFrame import Landmark
 from typing import Dict, List
+import numpy as np
 class GaitMetrics:
     """
         Calculate gait metrics for a particular gait type.
@@ -43,23 +44,82 @@ class GaitMetrics:
 
         return metric_value
 
-    # TODO: Change the func names to gait metric name and add the equations for each metric
-    
-    # ! THIS IS AN EXAMPLE OF A GAIT METRIC FUNCTION
-    def stepLength(self, required_landmarks: List[int], landmarks_list: List[Landmark]):
+    # Kinematic Metrics
+    # helper function to calculate the angle between three points in 3D space
+    def calculate_angle_3d(point1, point2, point3):
         """
-            Calculate the ______ metric using the required landmarks.
+        Calculate the angle between three 3D points where point2 is the vertex.
+
+        Args:
+            point1, point2, point3: 3D points as [x, y, z]
+
+        Returns:
+            Angle in degrees
+        """
+        
+        # Create vectors from points
+        vector1 = np.array([point1[0] - point2[0], point1[1] - point2[1], point1[2] - point2[2]])
+        vector2 = np.array([point3[0] - point2[0], point3[1] - point2[1], point3[2] - point2[2]])
+        
+        # Calculate dot product
+        dot_product = np.dot(vector1, vector2)
+        
+        # Calculate magnitudes
+        magnitude1 = np.linalg.norm(vector1)
+        magnitude2 = np.linalg.norm(vector2)
+        
+        # Calculate angle in radians and convert to degrees
+        angle = np.arccos(dot_product / (magnitude1 * magnitude2))
+        return np.degrees(angle)
+
+    # NOTE: The order of the landmarks is important for the angle calculation
+
+    # 1. Hig Angle - Need shoulder, hip, knee landmarks
+    def hipAngle(self, required_landmarks: List[int], landmarks_list: List[Landmark]):
+        """
+            Calculate the hip angle metric using the required landmarks.
         """
 
-        # Lambda function to calculate step length between landmarks 0 and 1
-        eqn = lambda landmarks: abs(landmarks[0].x - landmarks[1].x)
+        # Lambda function to calculate hip angle
+        eqn = lambda landmarks: self.calculate_angle_3d(
+            [landmarks[required_landmarks[0]].x, landmarks[required_landmarks[0]].y, landmarks[required_landmarks[0]].z],  # Shoulder
+            [landmarks[required_landmarks[1]].x, landmarks[required_landmarks[1]].y, landmarks[required_landmarks[1]].z],  # Hip
+            [landmarks[required_landmarks[2]].x, landmarks[required_landmarks[2]].y, landmarks[required_landmarks[2]].z]   # Knee
+        )
 
         return self.calc_metrics(landmarks_list, required_landmarks, eqn)
+    
+    # 2. Knee Angle - need hip, knee, ankle landmarks
+    def kneeAngle(self, required_landmarks: List[int], landmarks_list: List[Landmark]):
+        """
+            Calculate the knee angle metric using the required landmarks.
+        """
 
-    def metric2(self, required_landmarks: List[int], landmarks_list: List[Landmark]):
-        pass
+        # Lambda function to calculate knee angle
+        eqn = lambda landmarks: self.calculate_angle_3d(
+            [landmarks[required_landmarks[0]].x, landmarks[required_landmarks[0]].y, landmarks[required_landmarks[0]].z],  # Hip
+            [landmarks[required_landmarks[1]].x, landmarks[required_landmarks[1]].y, landmarks[required_landmarks[1]].z],  # Knee
+            [landmarks[required_landmarks[2]].x, landmarks[required_landmarks[2]].y, landmarks[required_landmarks[2]].z]   # Ankle
+        )
 
-    # .... other metrics
+        return self.calc_metrics(landmarks_list, required_landmarks, eqn)
+    
+    
+
+    # def stepLength(self, required_landmarks: List[int], landmarks_list: List[Landmark]):
+    #     """
+    #         Calculate the ______ metric using the required landmarks.
+    #     """
+
+    #     # Lambda function to calculate step length between landmarks 0 and 1
+    #     eqn = lambda landmarks: abs(landmarks[0].x - landmarks[1].x)
+
+    #     return self.calc_metrics(landmarks_list, required_landmarks, eqn)
+
+    # def metric2(self, required_landmarks: List[int], landmarks_list: List[Landmark]):
+    #     pass
+
+    # # .... other metrics
 
     # ! CHANGE THE ARGS TO PROPER GAIT METRIC NAMES & ADD ARGS FOR EACH METRIC
     def create_metrics_list(self, metric1_req_landmarks: List[int], metric2_req_landmarks: List[int], ..., ...):
