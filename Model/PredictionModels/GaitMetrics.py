@@ -9,10 +9,11 @@ class GaitMetrics:
     """
         Calculate gait metrics for a particular gait type.
     """
-    def __init__(self, landmarks_of_gait: Dict[int , List[Landmark]]):
+    def __init__(self, landmarks_of_gait: Dict[int , List[Landmark]], video_mapping: Dict[int, str], gait_type: str):
         self.landmarks = landmarks_of_gait 
-        self.metrics_list = [] # a list to store the metrics for each frame
-
+        self.video_mapping = video_mapping  # Maps timestamps to source video IDs
+        self.type = gait_type  # Gait type (e.g., "Antalgic_Gait", "Normal_Gait", etc.)
+        
     def get_landmarks(self, landmarks_list: List[Landmark], required_landmarks: List[int]) -> List[Landmark]:
         """
             Get the required landmarks from the landmarks list.
@@ -292,6 +293,8 @@ class GaitMetrics:
         # Add gait type as a column
         metrics_df['Gait Type'] = self.type
 
+        # add video ID as well
+
         return metrics_df
 
 # example
@@ -310,5 +313,6 @@ if __name__ ==  'main':
     gait_metrics_for_antalgic_gait = GaitMetrics(extractor.landmarks)
     gait_metrics_for_antalgic_gait.create_metrics_list(metric1landmarks, metrics2landmarks, ....)
 
+# use extractor.video_mapping to get the video ID for each frame when creating the dataset
 # TODO: After calculating metrics for each gait type, we r left with GaitMetrics objects for each gait type. 
 # Use these objects in the main file to create a dataset by concatenating the metrics for each gait type.
