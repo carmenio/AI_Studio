@@ -200,7 +200,45 @@ class GaitMetrics:
     # -------------------------------------------------------------------------------------------------------------------- #
 
     # C) Spatiotemporal Metrics
-
+    def find_min_step_height(self, foot_index: int, landmarks_list: List[Landmark]):
+        
+        buffer = 0.2
+        array_all_feet_index = [landmark[foot_index].z for landmark in landmarks_list]
+        
+        min_feet = min(array_all_feet_index)
+        
+        # min_feet = 0.23
+        
+        contact_ground = []
+        
+        for foot_height in array_all_feet_index:
+            if foot_height < min_feet + buffer:
+                contact_ground.append(True)
+            else:
+                contact_ground.append(False)
+                
+                
+        # contact_ground = [False,False,False,False, True,True,True,True,True, False,False,False, ]
+      
+        # Find Mid Points of the Trues
+        # Mid_Points = [12, 24, 65, 100]
+    
+        # use that to calculate step length, calculate step time 
+        # step_len = [10, 10 ,10, 12, 30]
+        # len_of_step = [10, 10 ,10, 12, 30]
+        
+        
+        # fill in the gaps
+        # create a new array of size length of dataframe (length of video)
+        filled_in_step_len = []
+        for i in range(start_frame_index, end_frame_index):
+            # Find what index is needed for step_info_index
+            filled_in_step_len.append(
+                step_len[step_info_index]
+            )
+        
+        
+        
 
 
 
