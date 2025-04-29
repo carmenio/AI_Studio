@@ -26,6 +26,8 @@ class ExtractLandmarks:
         self.type = gait_type
         self.gait_type_path = gait_type_path
         self.timestep_ = 0
+        self.video_mapping = {}  # Maps timestamps to source video IDs
+        self.sequence_mapping = {}  # Maps sequence objects to video IDs
 
     def load_pkl_file(self, filepath: str):
         """
@@ -33,26 +35,69 @@ class ExtractLandmarks:
         """
         return PoseSequence.load(filepath)
     
+    # def load_pkl_files(self, filepaths: List[str]):
+    #     """
+    #         Return a list containing pose sequences corresponding to number of pkl files relevant to that gait.
+    #     """
+        
+    #     # self.pose_sequences = [self.load_pkl_file(file) for file in filepaths]
+    #     self.pose_sequences = {} # Dictionary to hold pose sequences with their respective file names as keys
+    #     for filepath in filepaths:
+    #         # Extract the file name without the extension
+    #         filename = os.path.splitext(os.path.basename(filepath))[0] # "0.pkl" -> "0"
+    #         # Load the pose sequence and store it in the dictionary
+    #         self.pose_sequences[filename] = self.load_pkl_file(filepath)
+
     def load_pkl_files(self, filepaths: List[str]):
         """
-            Return a list containing pose sequences corresponding to number of pkl files relevant to that gait.
+            Load multiple PKL files and map them to video IDs based on filename.
         """
+        self.pose_sequences = []
+        self.sequence_mapping = {}
+        
+        for file in filepaths:
+            # Extract video ID from filename 
+            video_id = os.path.basename(file).split('.')[0]  # Gets filename without extension
+            
+            # Load the sequence
+            sequence = self.load_pkl_file(file)
+            
+            # Store the sequence
+            self.pose_sequences.append(sequence)
+            
+            # Map the sequence object to its video ID
+            self.sequence_mapping[sequence] = video_id
 
-        self.pose_sequences = [self.load_pkl_file(file) for file in filepaths]
+    # # NOTE: You dont need to extract all the landmarks, you can just index the object like a normal array.
+    # # eg. self.pose_sequences[0] will give you all the landmarks at frame 0
+    # def extract_single_seq(self, pose_seq):
+    #     """
+    #         Extract landmarks corresponding to a single pose sequence and add them to the landmarks dict.
+    #     """
 
+    #     for frame in pose_seq:
+    #         self.timestep_ += 1
+    #         frame : PoseFrame
     
-    # NOTE: You dont need to extract all the landmarks, you can just index the object like a normal array.
-    # eg. self.pose_sequences[0] will give you all the landmarks at frame 0
+    #         self.landmarks[self.timestep_] = frame.get_landmarks()
+
     def extract_single_seq(self, pose_seq):
         """
             Extract landmarks corresponding to a single pose sequence and add them to the landmarks dict.
+            Also tracks which video each frame comes from.
         """
-
+        # Get the video ID for this sequence
+        video_id = self.sequence_mapping.get(pose_seq)
+        
         for frame in pose_seq:
             self.timestep_ += 1
             frame : PoseFrame
-    
+            
+            # Store the landmarks
             self.landmarks[self.timestep_] = frame.get_landmarks()
+            
+            # Also store which video this frame came from
+            self.video_mapping[self.timestep_] = video_id
 
     def extract(self):
         """
@@ -64,8 +109,8 @@ class ExtractLandmarks:
 
 
 if __name__ == "__main__":
-    GAIT_PATH = "D:/AI_Studio/Model/PredictionModels/Sequences/Apr_10_Spastic_Gait"
-    extractor = ExtractLandmarks("Spastic_Gait", GAIT_PATH)
+    GAIT_PATH = "D:/AI_Studio/Model/PredictionModels/Sequences/Apr_10_Normal_Gait"
+    extractor = ExtractLandmarks("Normal_Gait", GAIT_PATH)
 
     pkl_files = sorted([os.path.join(GAIT_PATH, file) for file in os.listdir(GAIT_PATH) if file.endswith('.pkl')])
 
@@ -74,6 +119,8 @@ if __name__ == "__main__":
     extractor.load_pkl_files(pkl_files)
     # Load the pose sequences from the pkl files
     extractor.extract()
-    print(extractor.landmarks)  # Print the extracted landmarks
+    # print(extractor.landmarks)  # Print the extracted landmarks
+    for timestep in sorted(list(extractor.landmarks.keys()))[:300]:  # Show first 200 frames
+        print(f"Frame {timestep} from video {extractor.video_mapping[timestep]}")
 
     
