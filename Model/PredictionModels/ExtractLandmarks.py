@@ -120,7 +120,15 @@ if __name__ == "__main__":
     # Load the pose sequences from the pkl files
     extractor.extract()
     # print(extractor.landmarks)  # Print the extracted landmarks
-    for timestep in sorted(list(extractor.landmarks.keys()))[:300]:  # Show first 200 frames
-        print(f"Frame {timestep} from video {extractor.video_mapping[timestep]}")
+    # for timestep in sorted(list(extractor.landmarks.keys()))[:300]:  # Show first 200 frames
+    #     print(f"Frame {timestep} from video {extractor.video_mapping[timestep]}")
+
+    # checking landmarks values for heel height
+    heel = 29
+    for frame, l in extractor.landmarks.items():
+        print(f"{frame}: {l[heel].z} - {extractor.video_mapping[frame]}")
+
+
+    
 
     
