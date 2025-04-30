@@ -5,7 +5,8 @@ from Model.Pose.Sequence.PoseFrame import Landmark
 from typing import Dict, List, Tuple
 import numpy as np
 import pandas as pd
-from Model.PredictionModels.ExtractLandmarks import ExtractLandmarks
+import matplotlib.pyplot as plt
+
 class GaitMetrics:
     """
         Calculate gait metrics for a particular gait type.
@@ -15,6 +16,7 @@ class GaitMetrics:
         self.video_mapping = video_mapping  # Maps timestamps to source video IDs
         self.type = gait_type  # Gait type (e.g., "Antalgic_Gait", "Normal_Gait", etc.)
         self.fps = 30  # Frames per second (FPS) for a video
+        self.best_buffer = 0.5  # Default buffer value for heel height detection
         
     def get_landmarks(self, landmarks_list: List[Landmark], required_landmarks: List[int]) -> List[Landmark]:
         """
@@ -83,8 +85,8 @@ class GaitMetrics:
 
     # 1. Hig Angle
     # * Need shoulder, hip, knee landmarks
-    # * To calculate right hip angle, use landmarks 11, 23, 25
-    # * To calculate left hip angle, use landmarks 12, 24, 26
+    # * To calculate left hip angle, use landmarks 11, 23, 25
+    # * To calculate right hip angle, use landmarks 12, 24, 26
     def hipAngle(self, required_landmarks: List[int], landmarks_list: List[Landmark]):
         """
             Calculate the hip angle metric using the required landmarks.
@@ -101,8 +103,8 @@ class GaitMetrics:
     
     # 2. Knee Angle 
     # * Need hip, knee, ankle landmarks
-    # * To calculate right knee angle, use landmarks 23, 25, 27
-    # * To calculate left knee angle, use landmarks 24, 26, 28
+    # * To calculate left knee angle, use landmarks 23, 25, 27
+    # * To calculate right knee angle, use landmarks 24, 26, 28
     def kneeAngle(self, required_landmarks: List[int], landmarks_list: List[Landmark]):
         """
             Calculate the knee angle metric using the required landmarks.
@@ -206,6 +208,7 @@ class GaitMetrics:
 
     # C) Spatiotemporal Metrics
 
+    # functions for exploration purposes
     def get_heel_height_per_vid(self, foot_index: int, vid_ID: int):
         """
             Get the heel height for each frame in the video.
@@ -238,8 +241,9 @@ class GaitMetrics:
         plt.show()
 
     def find_optimal_buffer(self, foot_index: int, vid_ID: int):
-        """Find the optimal buffer value through visual inspection"""
-        import matplotlib.pyplot as plt
+        """
+            Find the optimal buffer value through visual inspection
+        """
         
         # Get position data
         frames = sorted(f for f, v in self.video_mapping.items() if v == vid_ID)
@@ -256,6 +260,9 @@ class GaitMetrics:
         fig, axs = plt.subplots(len(buffer_values), 1, figsize=(5, 10), sharex=True)
 
         plt.subplots_adjust(hspace=0.5)
+
+        # title
+        fig.suptitle(f"Gait type: {self.type}, Video {vid_ID} - Foot Height with Different Buffer Values", fontsize=16)
         for i, buffer in enumerate(buffer_values):
             thresh = min_y + (max_y - min_y) * buffer
             contact = [y <= thresh for y in ys]
@@ -277,10 +284,21 @@ class GaitMetrics:
         plt.tight_layout()
         plt.show()
         
+        # # get best buffer value from the user
+        # best_buffer = float(input("Enter the best buffer value: "))
+        
+        # # store the best buffer value for this video
+        # self.best_buffer = best_buffer
+
         # get best buffer value from the user
         best_buffer = float(input("Enter the best buffer value: "))
-        print(f"Best buffer value: {best_buffer}")
-        self.best_buffer = best_buffer
+        
+        # store the best buffer value for this video
+        if not hasattr(self, 'best_buffer_values'):
+            self.best_buffer_values = []
+        self.best_buffer_values.append(best_buffer)
+
+        return best_buffer
     
     # 1. Stride Metrics
 
@@ -306,7 +324,8 @@ class GaitMetrics:
         # 3) detect “on ground” by y (vertical) being close to the minimum
         ys = [p[1] for p in pos]
         min_y, max_y = min(ys), max(ys)
-        BUFFER = self.best_buffer  # buffer to account for noise in y values
+        # BUFFER = self.best_buffer  # buffer to account for noise in y values
+        BUFFER = getattr(self, 'best_buffer', 0.5)  # Default to 0.5 if not set
         thresh = min_y + (max_y - min_y) * BUFFER
         contact = [y <= thresh for y in ys]
 
@@ -661,47 +680,10 @@ class GaitMetrics:
         # add the gait type to the DataFrame
         metrics_df['GaitType'] = self.type
 
-        # put the video ID as the first column
+        # put the video ID as the first column and gait type as the 2nd column
         cols = metrics_df.columns.tolist()
         cols.insert(0, cols.pop(cols.index('VideoID')))
+        cols.insert(1, cols.pop(cols.index('GaitType')))
         metrics_df = metrics_df[cols]
 
         return metrics_df
-
-# example
-if __name__ == "__main__":
-    GAIT_PATH = "D:/AI_Studio/Model/PredictionModels/Sequences/Apr_10_Normal_Gait"
-    extractor = ExtractLandmarks("Normal_Gait", GAIT_PATH)
-
-    pkl_files = sorted([os.path.join(GAIT_PATH, file) for file in os.listdir(GAIT_PATH) if file.endswith('.pkl')])
-
-    # print(pkl_files)  # Print the list of pkl files
-    # Load the pkl files into the extractor
-    extractor.load_pkl_files(pkl_files)
-    # Load the pose sequences from the pkl files
-    extractor.extract()
-
-    # NOTE: Now we have the landmarks for the gait type, we can calculate the metrics
-    gait_norm = GaitMetrics(extractor.landmarks, extractor.video_mapping, "Normal_Gait")
-
-    # # plot the heel height for each video
-    # gait_norm.plot_heel_height(29, 2)  
-
-    # * Inspect for each video of each gait type before entering the buffer value
-    gait_norm.find_optimal_buffer(29, 3)
-
-    # df = gait_norm.create_metrics_df(
-    #     rightHipAngle_req_landmarks=[11, 23, 25], 
-    #     leftHipAngle_req_landmarks=[12, 24, 26],
-    #     rightKneeAngle_req_landmarks=[23, 25, 27], 
-    #     leftKneeAngle_req_landmarks=[24, 26, 28],
-    #     bodyTiltAngle_req_landmarks=[11, 12, 23, 24], 
-    #     headTiltAngle_req_landmarks=[0, 11, 12]
-    # )
-    
-    # # save the DataFrame to a csv file
-    # df.to_csv("D:/AI_Studio/Model/PredictionModels/Sequences/Apr_10_Normal_Gait/Normal_Gait_Metrics.csv", index=False)
-
-# use extractor.video_mapping to get the video ID for each frame when creating the dataset
-# TODO: After calculating metrics for each gait type, we r left with GaitMetrics objects for each gait type. 
-# Use these objects in the main file to create a dataset by concatenating the metrics for each gait type.
