@@ -2,14 +2,15 @@
 import os, sys; [(sys.path.append(d), print(f'Added {d} to system path')) for d in (os.path.abspath(os.path.join(os.getcwd(), *([".."] * i))) for i in range(len(os.getcwd().split(os.sep)))) if os.path.isfile(os.path.join(d, 'main.py'))]
 
 from Model.Pose.Sequence.PoseFrame import Landmark
-from typing import Dict, List
+from typing import Dict, List, Tuple
 import numpy as np
 import pandas as pd
+from Model.PredictionModels.ExtractLandmarks import ExtractLandmarks
 class GaitMetrics:
     """
         Calculate gait metrics for a particular gait type.
     """
-    def __init__(self, landmarks_of_gait: Dict[int , List[Landmark]], video_mapping: Dict[int, str], gait_type: str):
+    def __init__(self, landmarks_of_gait: Dict[int , List[Landmark]], video_mapping: Dict[int, int], gait_type: str):
         self.landmarks = landmarks_of_gait 
         self.video_mapping = video_mapping  # Maps timestamps to source video IDs
         self.type = gait_type  # Gait type (e.g., "Antalgic_Gait", "Normal_Gait", etc.)
@@ -50,6 +51,7 @@ class GaitMetrics:
 
     # A) Kinematic Metrics
     # helper function to calculate the angle between three points in 3D space
+    @staticmethod
     def calculate_angle_3d(point1, point2, point3):
         """
         Calculate the angle between three 3D points where point2 is the vertex.
@@ -119,6 +121,7 @@ class GaitMetrics:
     
     # B) Postural feature Metrics
     # helper function to calculate the angle in the sagittal plane
+    @staticmethod
     def calculate_sagittal_angle(top_point, bottom_point, is_forward_backward=True):
         """
         Calculate the angle in the sagittal plane (forward/backward tilt).
@@ -211,146 +214,346 @@ class GaitMetrics:
         # Get the heel height for each frame in the video
         heel_height = [landmark[foot_index].z for frame, landmark in self.landmarks.items() if self.video_mapping[frame] == vid_ID]
 
+        # print(heel_height)
         return heel_height
-
-    def calc_step_metrics(self, foot_index: int, vid_ID: int):
+    
+    def plot_heel_height(self, foot_index: int, vid_ID: int):
         """
-            Find the contact points for the foot in the video.
-            foot_index: 29 for right foot or 30 for left foot
+            Plot the heel height for each frame in the video.
         """
         # Get the heel height for each frame in the video
         heel_height = self.get_heel_height_per_vid(foot_index, vid_ID)
-        buffer = 0.2
-
-        # Find the minimum heel height in the video
-        min_heel_height = min(heel_height)
-
-        # Find the contact points (frames where heel height is less than min_heel_height + buffer)
-        contact_ground = []  # True or False for each frame
-        # True if foot is on the ground, False if foot is in the air
-        for foot_height in heel_height:
-            if foot_height < min_heel_height + buffer:
-                contact_ground.append(True)
-            else:
-                contact_ground.append(False)
         
-        # contact_ground = [False, False, False, False, True, True, True, True, True, False, False, False, True, True, True] example
-        # find the mid points of the Trues groups
-        mid_points_indices = []
-        start = None
-        for i, contact in enumerate(contact_ground):
-            if contact and start is None:
-                start = i
-            elif not contact and start is not None:
-                mid_points_indices.append((start + i) // 2)
-                start = None
+        # Plot the heel height
+        import matplotlib.pyplot as plt
 
-        # handle a true group extending to the end
-        if start is not None:
-            mid_points_indices.append((start + len(contact_ground)) // 2)
+        plt.plot(heel_height)
+        plt.title(f"Heel Height for Video {vid_ID}")
+        # x limits
+        plt.xlim(1, len(heel_height))
+        plt.xlabel("Frame")
+        # y limits
+        plt.ylim(min(heel_height) - 100.0, max(heel_height) + 100.0)
+        plt.ylabel("Heel Height (z)")
+        plt.show()
 
-        # output: mid_points_indices = [4, 8, 12] example
+    # def calc_step_metrics(self, foot_index: int, vid_ID: int):
+    #     """
+    #         Find the contact points for the foot in the video.
+    #     """
+    #     # Get the heel height for each frame in the video
+    #     heel_height = self.get_heel_height_per_vid(foot_index, vid_ID)
+    #     buffer = 0.2
+
+    #     # Find the minimum heel height in the video
+    #     min_heel_height = min(heel_height)
+
+    #     # Find the contact points (frames where heel height is less than min_heel_height + buffer)
+    #     contact_ground = []  # True or False for each frame
+    #     # True if foot is on the ground, False if foot is in the air
+    #     for foot_height in heel_height:
+    #         if foot_height < min_heel_height + buffer:
+    #             contact_ground.append(True)
+    #         else:
+    #             contact_ground.append(False)
         
-        # calculate step length and step time
-        step_lengths = []
-        step_times = []
+    #     # contact_ground = [False, False, False, False, True, True, True, True, True, False, False, False, True, True, True] example
+    #     # find the mid points of the Trues groups
+    #     mid_points_indices = []
+    #     start = None
+    #     for i, contact in enumerate(contact_ground):
+    #         if contact and start is None:
+    #             start = i
+    #         elif not contact and start is not None:
+    #             mid_points_indices.append((start + i) // 2)
+    #             start = None
 
-        for i in range(len(mid_points_indices) - 1):
-            # Calculate step length (distance between mid points)
-            step_length = abs(heel_height[mid_points_indices[i]] - heel_height[mid_points_indices[i + 1]])
-            step_lengths.append(step_length)
+    #     # handle a true group extending to the end
+    #     if start is not None:
+    #         mid_points_indices.append((start + len(contact_ground)) // 2)
 
-            # Calculate step time (difference in frame indices)
-            step_time = (mid_points_indices[i + 1] - mid_points_indices[i]) / self.fps  # in seconds
-            step_times.append(step_time)
+    #     # output: mid_points_indices = [4, 8, 12] example
+        
+    #     # calculate step length and step time
+    #     step_lengths = []
+    #     step_times = []
 
-        return step_lengths, step_times, mid_points_indices, len(heel_height)
+    #     for i in range(len(mid_points_indices) - 1):
+    #         # Calculate step length (distance between mid points)
+    #         step_length = abs(heel_height[mid_points_indices[i]] - heel_height[mid_points_indices[i + 1]])
+    #         step_lengths.append(step_length)
+
+    #         # Calculate step time (difference in frame indices)
+    #         step_time = (mid_points_indices[i + 1] - mid_points_indices[i]) / self.fps  # in seconds
+    #         step_times.append(step_time)
+
+    #     return step_lengths, step_times, mid_points_indices, len(heel_height)
     
-    def fill_in_step_metrics(self, step_lengths: List[float], step_times: List[float], mid_points_indices: List[int], n_frames: int):
-        """
-            Fill in the step metrics for the entire video.
-        """
-        # Create a new array of size length of video (n_frames)
-        filled_in_step_lengths = []
-        filled_in_step_times = []
+    # def fill_in_step_metrics(self, step_lengths: List[float], step_times: List[float], mid_points_indices: List[int], n_frames: int):
+    #     """
+    #         Fill in the step metrics for the entire video.
+    #     """
+    #     # Create a new array of size length of video (n_frames)
+    #     filled_in_step_lengths = []
+    #     filled_in_step_times = []
 
-        # Fill in the gaps using the step lengths and times
-        for i in range(n_frames):
-            # Find what index is needed for step_info_index
-            step_info_index = next((index for index, value in enumerate(mid_points_indices) if value > i), None)
+    #     # Fill in the gaps using the step lengths and times
+    #     for i in range(n_frames):
+    #         # Find what index is needed for step_info_index
+    #         step_info_index = next((index for index, value in enumerate(mid_points_indices) if value > i), None)
             
-            if step_info_index is not None:
-                filled_in_step_lengths.append(step_lengths[step_info_index])
-                filled_in_step_times.append(step_times[step_info_index])
-            else:
-                filled_in_step_lengths.append(0)
-                filled_in_step_times.append(0)
+    #         if step_info_index is not None:
+    #             filled_in_step_lengths.append(step_lengths[step_info_index])
+    #             filled_in_step_times.append(step_times[step_info_index])
+    #         else:
+    #             filled_in_step_lengths.append(0)
+    #             filled_in_step_times.append(0)
 
-        return filled_in_step_lengths, filled_in_step_times
+    #     return filled_in_step_lengths, filled_in_step_times
     
-        # * EXAMPLE
-        # step_lengths = [0.32, 0.29, 0.35]  # Lengths in meters between consecutive steps
-        # step_times = [0.5, 0.47, 0.52]     # Times in seconds between consecutive steps
-        # mid_points_indices = [10, 25, 40]  # Frame indices where foot contacts occur
-        # n_frames = 50                      # Total number of frames in video
+    #     # * EXAMPLE
+    #     # step_lengths = [0.32, 0.29, 0.35]  # Lengths in meters between consecutive steps
+    #     # step_times = [0.5, 0.47, 0.52]     # Times in seconds between consecutive steps
+    #     # mid_points_indices = [10, 25, 40]  # Frame indices where foot contacts occur
+    #     # n_frames = 50                      # Total number of frames in video
 
-        # Frames 0-9
-        # For each frame, step_info_index = 0 (because mid_points_indices[0] = 10 > current frame)
-        # Each frame gets: step_lengths[0] = 0.32 and step_times[0] = 0.5
-        # Frames 10-24
-        # For each frame, step_info_index = 1 (because mid_points_indices[1] = 25 > current frame)
-        # Each frame gets: step_lengths[1] = 0.29 and step_times[1] = 0.47
-        # Frames 25-39
-        # For each frame, step_info_index = 2 (because mid_points_indices[2] = 40 > current frame)
-        # Each frame gets: step_lengths[2] = 0.35 and step_times[2] = 0.52
-        # Frames 40-49
-        # For each frame, step_info_index = None (no contact points after these frames)
-        # Each frame gets: 0 for both step length and time
+    #     # Frames 0-9
+    #     # For each frame, step_info_index = 0 (because mid_points_indices[0] = 10 > current frame)
+    #     # Each frame gets: step_lengths[0] = 0.32 and step_times[0] = 0.5
+    #     # Frames 10-24
+    #     # For each frame, step_info_index = 1 (because mid_points_indices[1] = 25 > current frame)
+    #     # Each frame gets: step_lengths[1] = 0.29 and step_times[1] = 0.47
+    #     # Frames 25-39
+    #     # For each frame, step_info_index = 2 (because mid_points_indices[2] = 40 > current frame)
+    #     # Each frame gets: step_lengths[2] = 0.35 and step_times[2] = 0.52
+    #     # Frames 40-49
+    #     # For each frame, step_info_index = None (no contact points after these frames)
+    #     # Each frame gets: 0 for both step length and time
 
-        # filled_in_step_lengths = [
-        #     # Frames 0-9 (10 frames)
-        #     0.32, 0.32, 0.32, 0.32, 0.32, 0.32, 0.32, 0.32, 0.32, 0.32,
-        #     # Frames 10-24 (15 frames)
-        #     0.29, 0.29, 0.29, 0.29, 0.29, 0.29, 0.29, 0.29, 0.29, 0.29, 0.29, 0.29, 0.29, 0.29, 0.29,
-        #     # Frames 25-39 (15 frames)
-        #     0.35, 0.35, 0.35, 0.35, 0.35, 0.35, 0.35, 0.35, 0.35, 0.35, 0.35, 0.35, 0.35, 0.35, 0.35,
-        #     # Frames 40-49 (10 frames)
-        #     0, 0, 0, 0, 0, 0, 0, 0, 0, 0
-        # ]
+    #     # filled_in_step_lengths = [
+    #     #     # Frames 0-9 (10 frames)
+    #     #     0.32, 0.32, 0.32, 0.32, 0.32, 0.32, 0.32, 0.32, 0.32, 0.32,
+    #     #     # Frames 10-24 (15 frames)
+    #     #     0.29, 0.29, 0.29, 0.29, 0.29, 0.29, 0.29, 0.29, 0.29, 0.29, 0.29, 0.29, 0.29, 0.29, 0.29,
+    #     #     # Frames 25-39 (15 frames)
+    #     #     0.35, 0.35, 0.35, 0.35, 0.35, 0.35, 0.35, 0.35, 0.35, 0.35, 0.35, 0.35, 0.35, 0.35, 0.35,
+    #     #     # Frames 40-49 (10 frames)
+    #     #     0, 0, 0, 0, 0, 0, 0, 0, 0, 0
+    #     # ]
     
-    def calc_step_metrics_for_video(self, foot_index: int, vid_ID: int):
-        """
-            Calculate the step metrics for a specific video.
-        """
-        # Get the step metrics for the video
-        step_lengths, step_times, mid_points_indices, n_frames = self.calc_step_metrics(foot_index, vid_ID)
+    # def calc_stride_metrics(self, foot_index: int, vid_ID: int
+    #                     ) -> Tuple[List[float], List[float], List[int], int]:
+    #     """
+    #     Returns:
+    #         stride_lengths     : horizontal distances between successive foot contacts
+    #         stride_times       : times (in s) between those contacts
+    #         mid_points_idx   : frame‐indices of each contact midpoint
+    #         n_frames         : total frames in this video
+    #     """
+    #     # 1) pull out only the frames for this video
+    #     frames = [f for f in self.landmarks.keys() if self.video_mapping[f] == vid_ID]
+    #     frames.sort()
+        
+    #     # 2) collect positions per frame
+    #     positions = []  # list of (x, y, z)
+    #     for f in frames:
+    #         lm = self.landmarks[f][foot_index]
+    #         positions.append((lm.x, lm.y, lm.z))
+    #     n_frames = len(positions)
+        
+    #     # 3) find “on‐ground” via z
+    #     zs = [p[2] for p in positions]
+    #     BUFFER = 0.2  # buffer to account for noise in z values
+    #     thresh = min(zs) + BUFFER
+    #     contact = [z < thresh for z in zs]
+        
+    #     # 4) extract midpoints of each True‐run
+    #     mids = []
+    #     start = None
+    #     for i, c in enumerate(contact):
+    #         if c and start is None:
+    #             start = i
+    #         elif not c and start is not None:
+    #             mids.append((start + i) // 2)
+    #             start = None
+    #     if start is not None:
+    #         mids.append((start + n_frames) // 2)
+        
+    #     # 5) compute strides between consecutive mids
+    #     stride_lengths = []
+    #     stride_times   = []
+    #     for i in range(len(mids) - 1):
+    #         x0, y0, _ = positions[mids[i]]
+    #         x1, y1, _ = positions[mids[i+1]]
+    #         # horizontal distance
+    #         dist = np.hypot(x1 - x0, y1 - y0)
+    #         stride_lengths.append(dist)
+    #         # time
+    #         dt = (mids[i+1] - mids[i]) / self.fps
+    #         stride_times.append(dt)
+        
+    #     return stride_lengths, stride_times, mids, n_frames
 
-        # Fill in the step metrics for the entire video
-        filled_in_step_lengths, filled_in_step_times = self.fill_in_step_metrics(step_lengths, step_times, mid_points_indices, n_frames)
+    # def fill_in_stride_metrics(self,
+    #                          stride_lengths: List[float],
+    #                          stride_times:   List[float],
+    #                          mids:         List[int],
+    #                          n_frames:     int
+    #                         ) -> Tuple[List[float], List[float]]:
+    #     """
+    #     For each frame, assign the upcoming (or previous) stride’s length & time.
+    #     Frames ≥ last contact get zeros.
+    #     """
+    #     filled_L = [0.0] * n_frames
+    #     filled_T = [0.0] * n_frames
 
-        return filled_in_step_lengths, filled_in_step_times
+    #     if not mids or not stride_lengths:
+    #         return filled_L, filled_T
+
+    #     # define interval boundaries
+    #     # interval 0: frames [0 .. mids[1]-1] → step_lengths[0]
+    #     # interval 1: frames [mids[1] .. mids[2]-1] → step_lengths[1], etc.
+    #     # after mids[-1]: leave zeros
+        
+    #     for i in range(n_frames):
+    #         # find which interval i belongs to
+    #         # if before second midpoint, use stride_lengths[0]
+    #         for k in range(len(stride_lengths)):
+    #             if i < mids[k+1]:
+    #                 filled_L[i] = stride_lengths[k]
+    #                 filled_T[i] = stride_times[k]
+    #                 break
+    #         # else i ≥ mids[-1] → leave as zero
+
+    #     return filled_L, filled_T
+    # 1. Stride Length & Time
+
+    def calc_stride_metrics(self, foot_index: int, vid_ID: int
+                      ) -> Tuple[List[float], List[float], List[int], int]:
+        """
+        Returns:
+            stride_lengths : horizontal distances (x–z plane) between successive foot contacts
+            stride_times   : times (in seconds) between those contacts
+            mids           : frame‐indices of each contact midpoint
+            n_frames       : total frames in this video
+        """
+        # 1) gather all frames for this video, sorted
+        vid_frames = sorted(f for f, v in self.video_mapping.items() if v == vid_ID)
+        n_frames = len(vid_frames)
+
+        # 2) collect each frame’s (x, y, z)
+        pos = [(self.landmarks[f][foot_index].x,
+                self.landmarks[f][foot_index].y,
+                self.landmarks[f][foot_index].z)
+            for f in vid_frames]
+
+        # 3) detect “on ground” by y (vertical) being close to the minimum
+        ys = [p[1] for p in pos]
+        min_y, max_y = min(ys), max(ys)
+        BUFFER = 0.3  # buffer to account for noise in y values
+        thresh = min_y + (max_y - min_y) * BUFFER
+        contact = [y <= thresh for y in ys]
+
+        # 4) find midpoint of each True‐run
+        mids = []
+        start = None
+        for i, c in enumerate(contact):
+            if c and start is None:
+                start = i
+            elif not c and start is not None:
+                mids.append((start + i)//2)
+                start = None
+        if start is not None:
+            mids.append((start + len(contact))//2)
+
+        # 5) compute stride distances & times between consecutive mids
+        stride_lengths = []
+        stride_times = []
+        for j in range(len(mids) - 1):
+            i0, i1 = mids[j], mids[j+1]
+            f0, f1 = vid_frames[i0], vid_frames[i1]
+            x0, _, z0 = pos[i0]
+            x1, _, z1 = pos[i1]
+            # horizontal (x–z) distance
+            stride_lengths.append(np.hypot(x1 - x0, z1 - z0))
+            # time difference
+            stride_times.append((f1 - f0) / self.fps)
+
+        return stride_lengths, stride_times, mids, n_frames
+
+
+    def fill_in_stride_metrics(self,
+                            stride_lengths: List[float],
+                            stride_times:   List[float],
+                            mids:           List[int],
+                            n_frames:       int
+                            ) -> Tuple[List[float], List[float]]:
+        """
+        For each frame index 0..n_frames-1, assign the upcoming
+        stride’s length/time. After the final contact, values remain 0.0.
+        """
+        filled_L = [0.0] * n_frames
+        filled_T = [0.0] * n_frames
+
+        if len(mids) < 2:
+            return filled_L, filled_T
+
+        # Determine, for each frame index i, which interval k it’s in:
+        #  interval k covers: mids[k] ≤ i < mids[k+1]
+        # interval_idx points to which stride‐interval you’re in:
+
+        # Interval 0 covers frames from 0 up to (but not including) 
+        # the second contact midpoint.
+        # Interval 1 covers frames from the 2nd through just before the 3rd midpoint, etc.
+
+        interval_idx = 0
+        for i in range(n_frames):
+            # move to next interval if passed its start
+            while interval_idx + 1 < len(mids) and i >= mids[interval_idx+1]:
+                interval_idx += 1
+            # only assign if there is a next stride available
+            if interval_idx < len(stride_lengths):
+                filled_L[i] = stride_lengths[interval_idx]
+                filled_T[i] = stride_times[interval_idx]
+
+        return filled_L, filled_T
+
+
+    def calc_stride_metrics_for_video(self, foot_index: int, vid_ID: int):
+        """
+            Calculate the stride metrics for a specific video.
+        """
+        # Get the stride metrics for the video
+        stride_lengths, stride_times, mid_points_indices, n_frames = self.calc_stride_metrics(foot_index, vid_ID)
+
+        # Fill in the stride metrics for the entire video
+        filled_in_stride_lengths, filled_in_stride_times = self.fill_in_stride_metrics(stride_lengths, stride_times, mid_points_indices, n_frames)
+
+        return filled_in_stride_lengths, filled_in_stride_times
     
-    def calc_step_metrics_for_all_videos(self, foot_index: int, foot_type: str):
+    def calc_stride_metrics_for_all_videos(self, foot_index: int):
         """
-            Calculate the step metrics for all videos.
+            Calculate the stride metrics for all videos.
         """
-        all_step_metrics = {}
+        all_stride_metrics = {
+            f"strideLength": [],
+            f"strideTime": []
+        }
 
-        # Iterate through each video ID and calculate the step metrics
+        # Iterate through each video ID and calculate the stride metrics
         for vid_ID in set(self.video_mapping.values()):
-            step_lengths, step_times = self.calc_step_metrics_for_video(foot_index, vid_ID)
-            all_step_metrics[vid_ID] = {
-                f"{foot_type}StepLength": step_lengths,
-                f"{foot_type}StepTime": step_times
-            }
+            stride_lengths, stride_times = self.calc_stride_metrics_for_video(foot_index, vid_ID)
+            # Append the stride metrics to the dictionary
+            all_stride_metrics[f"strideLength"].extend(stride_lengths)
+            all_stride_metrics[f"strideTime"].extend(stride_times)
 
-        return all_step_metrics
+        return all_stride_metrics
 
     # -------------------------------------------------------------------------------------------------------------------- #
 
     def create_metrics_list(self, rightHipAngle_req_landmarks: List[int], leftHipAngle_req_landmarks: List[int],
                             rightKneeAngle_req_landmarks: List[int], leftKneeAngle_req_landmarks: List[int],
-                            bodyTiltAngle_req_landmarks: List[int], headTiltAngle_req_landmarks: List[int]):
+                            bodyTiltAngle_req_landmarks: List[int], headTiltAngle_req_landmarks: List[int], stride_foot_index: int = 29):
         """
             Create a list of metrics for the gait type and convert to DataFrame.
         """
@@ -387,8 +590,7 @@ class GaitMetrics:
             metrics_dict["HeadTiltAngle"].append(head_tilt_angle)
 
         # add the step metrics to the dictionary
-        metrics_dict.update(self.calc_step_metrics_for_all_videos(29, "Right")) # Right leg
-        metrics_dict.update(self.calc_step_metrics_for_all_videos(30, "Left")) # Left leg
+        metrics_dict.update(self.calc_stride_metrics_for_all_videos(stride_foot_index))
 
         # create a DataFrame from the metrics dictionary
         metrics_df = pd.DataFrame(metrics_dict)
@@ -401,21 +603,37 @@ class GaitMetrics:
 
         return metrics_df
 
+
 # example
-if __name__ ==  'main':
-    GAIT_PATH = "Model/PredictionModels/Sequences/Apr_10_Antalgic_Gait"
-    extractor = ExtractLandmarks("Antalgic_Gait", GAIT_PATH)
+if __name__ == "__main__":
+    GAIT_PATH = "D:/AI_Studio/Model/PredictionModels/Sequences/Apr_10_Normal_Gait"
+    extractor = ExtractLandmarks("Normal_Gait", GAIT_PATH)
 
-    pkl_files = [sorted(os.path.join(GAIT_PATH, file) for file in os.listdir(GAIT_PATH) if file.endswith('.pkl'))]
+    pkl_files = sorted([os.path.join(GAIT_PATH, file) for file in os.listdir(GAIT_PATH) if file.endswith('.pkl')])
 
+    # print(pkl_files)  # Print the list of pkl files
     # Load the pkl files into the extractor
     extractor.load_pkl_files(pkl_files)
     # Load the pose sequences from the pkl files
     extractor.extract()
 
     # NOTE: Now we have the landmarks for the gait type, we can calculate the metrics
-    gait_metrics_for_antalgic_gait = GaitMetrics(extractor.landmarks)
-    gait_metrics_for_antalgic_gait.create_metrics_list(metric1landmarks, metrics2landmarks, ....)
+    gait_norm = GaitMetrics(extractor.landmarks, extractor.video_mapping, "Normal_Gait")
+
+    # # plot the heel height for each video
+    # gait_norm.plot_heel_height(29, 2)  
+
+    df = gait_norm.create_metrics_list(
+        rightHipAngle_req_landmarks=[11, 23, 25], 
+        leftHipAngle_req_landmarks=[12, 24, 26],
+        rightKneeAngle_req_landmarks=[23, 25, 27], 
+        leftKneeAngle_req_landmarks=[24, 26, 28],
+        bodyTiltAngle_req_landmarks=[11, 12, 23, 24], 
+        headTiltAngle_req_landmarks=[0, 11, 12]
+    )
+    
+    # save the DataFrame to a csv file
+    df.to_csv("D:/AI_Studio/Model/PredictionModels/Sequences/Apr_10_Normal_Gait/Normal_Gait_Metrics.csv", index=False)
 
 # use extractor.video_mapping to get the video ID for each frame when creating the dataset
 # TODO: After calculating metrics for each gait type, we r left with GaitMetrics objects for each gait type. 

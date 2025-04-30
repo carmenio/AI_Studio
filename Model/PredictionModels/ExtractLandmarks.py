@@ -58,6 +58,8 @@ class ExtractLandmarks:
         for file in filepaths:
             # Extract video ID from filename 
             video_id = os.path.basename(file).split('.')[0]  # Gets filename without extension
+            # make it an int
+            video_id = int(video_id) 
             
             # Load the sequence
             sequence = self.load_pkl_file(file)
