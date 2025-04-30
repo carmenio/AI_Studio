@@ -35,7 +35,7 @@ class Dataset:
         gait_metrics = GaitMetrics(extractor.landmarks, extractor.video_mapping, gait_type)
 
         # * Inspect for each video of each gait type before entering the buffer value
-        self.find_optim_buffer(gait_metrics, n_videos)
+        self.find_optim_buffer(gait_metrics)
 
         # create the metrics DataFrame
         self.create_metrics_df(gait_metrics, self.rha, self.lha, self.rka, self.lka, self.bta, self.hta)
@@ -49,7 +49,7 @@ class Dataset:
     #     for i in range(n_videos):
     #         GM.find_optimal_buffer(29, i) # limitation - calculated only for left feet (Assuming there is no major difference between left and right feet)
 
-    def find_optim_buffer(self, GM: GaitMetrics, n_videos: int):
+    def find_optim_buffer(self, GM: GaitMetrics):
         """
         Find the optimal buffer value for all videos of a gait type.
         """
