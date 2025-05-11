@@ -8,8 +8,8 @@ import seaborn as sns
 import matplotlib.pyplot as plt
 from sklearn.metrics import confusion_matrix
 from torchview import draw_graph
-from torchinfo import summary
-from torchviz import make_dot
+# from torchinfo import summary
+# from torchviz import make_dot
 from torch.utils.tensorboard import *
 
 def load_data():
