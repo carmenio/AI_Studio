@@ -7,7 +7,7 @@ from Model.Pose.Sequence.PoseFrame import PoseFrame, Landmark
 from Model.Pose.Sequence.PoseSequence import PoseSequence
 import numpy as np
 import math
-from itertools import zip_longest
+from itertools import zip_longest 
 
 
 class TrimPoseSequence(BaseClass):
